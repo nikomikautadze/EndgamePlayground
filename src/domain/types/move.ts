@@ -1,4 +1,4 @@
-import { Square, Color, PieceType } from './boardposition.ts'
+import { Square, Color, PieceType } from './boardPosition.ts'
 
 export interface Move {
   playerColor: Color;

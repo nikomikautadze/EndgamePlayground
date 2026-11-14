@@ -1,4 +1,4 @@
-import { BoardPosition } from './boardposition.ts';
+import { BoardPosition } from './boardPosition.ts';
 import { Move } from './move.ts';
 
 //Metadata extracted from the PGN
