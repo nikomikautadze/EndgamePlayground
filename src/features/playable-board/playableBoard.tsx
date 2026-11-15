@@ -42,8 +42,22 @@ export function PlayableBoard() {
   }, [engine, game, playerColor]);
 
   useEffect(() => {
-    engine.evaluatePosition(fen);
-  }, [engine, fen, playerColor]);
+
+    let calculatedDepth = 15;
+    let moveTime: number | undefined = undefined;
+
+    if (difficulty === 0) {
+      calculatedDepth = 1;
+      moveTime = 50;
+    }
+    else if (difficulty == 5) {
+      calculatedDepth = 3;
+      moveTime = 300;
+    } else {
+      calculatedDepth = Math.max(5, difficulty);
+    }
+    engine.evaluatePosition(fen, calculatedDepth);
+  }, [engine, fen, playerColor, difficulty]);
 
 
   function onPieceDrop({

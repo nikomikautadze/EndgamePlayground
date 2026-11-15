@@ -21,14 +21,18 @@ export class stockfishAdapter implements IChessEngine {
   private lastScore: number = 0;
   private lastMate: number | null = null;
 
-  public evaluatePosition(fen: string, depth: number = 15): void {
+  public evaluatePosition(fen: string, depth: number = 15, moveTime?: number): void {
     if (!this.worker) this.init();
     const parts = fen.split('');
     if (parts.length > 1) {
       this.currentTurn = parts[1] as 'w' | 'b';
     }
     this.worker?.postMessage(`position fen ${fen}`);
-    this.worker?.postMessage(`go depth ${depth}`);
+    if (moveTime) {
+      this.worker?.postMessage(`go movetime ${moveTime}`);
+    } else {
+      this.worker?.postMessage(`go depth ${depth}`);
+    }
   }
 
   public onEvaluationReady(callback: (evalData: EngineEvaluation) => void): void {
