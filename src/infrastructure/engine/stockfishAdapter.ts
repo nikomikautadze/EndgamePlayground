@@ -1,6 +1,6 @@
 import { IChessEngine , EngineEvaluation } from '../../domain/engine/iChessEngine.ts';
 
-export class stockfishAdapter implements EngineEvaluation {
+export class stockfishAdapter implements IChessEngine {
   private worker: Worker | null = null;
   private callback: ((evalData: EngineEvaluation) => void) | null = null;
 
@@ -17,10 +17,16 @@ export class stockfishAdapter implements EngineEvaluation {
     this.worker.postMessage('isready');
   }
 
+  private currentTurn: 'w' | 'b' = 'w';
+
   public evaluatePosition(fen: string, depth: number = 15): void {
     if (!this.worker) this.init();
-    this.worker?.postMessage('position fen ${fen}');
-    this.worker?.postMessage('go depth ${depth}');
+    const parts = fen.split('');
+    if (parts.length > 1) {
+      this.currentTurn = parts[1] as 'w' | 'b';
+    }
+    this.worker?.postMessage(`position fen ${fen}`);
+    this.worker?.postMessage(`go depth ${depth}`);
   }
 
   public onEvaluationReady(callback: (evalData: EngineEvaluation) => void): void {
@@ -29,7 +35,7 @@ export class stockfishAdapter implements EngineEvaluation {
 
   public stop(): void {
     if (this.worker) {
-      postMessage('quit');
+      this.worker.postMessage('quit');
       this.worker.terminate();
       this.worker = null;
     }
@@ -37,13 +43,29 @@ export class stockfishAdapter implements EngineEvaluation {
 
   private handleWorkerMessage(event: MessageEvent): void {
     const line = event.data;
+
     //parse stockfish returned text
-    if(line.startsWith('info depth') && line.includes('score cp') && this.callback) {
-      const matchScore = line.match(/score cp (-?\d+)/);
-      const score = matchScore ? parseInt(matchScore[1], 10) / 100 : 0;
+    if(line.startsWith('info depth') && this.callback) {
+      let score = 0;
+      let mate: number | null = null;
+
+      const mateMatch = line.match(/score mate (-?\d+)/);
+      if (mateMatch) {
+        mate = parseInt(mateMatch[1], 10);
+        if (this.currentTurn === 'b') mate = -mate;
+      }
+      else {
+        const cpMatch = line.match(/score cp (-?\d+)/);
+        if (cpMatch) {
+          let cp = parseInt(cpMatch[1], 10);
+          if (this.currentTurn === 'b') mate = -mate;
+          score = cp/100;
+        }
+      }
       this.callback({
         score,
-        bestMove: ''
+        mate,
+        bestMove: undefined
       });
     }
 

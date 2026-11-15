@@ -1,10 +1,10 @@
 import { MoveNotation } from '../types/boardPosition.ts';
-import { GamePgn } from '../types/gamePgn.ts';
+//import { GamePgn } from '../types/gamePgn.ts';
 
 export interface EngineEvaluation {
   score: number;
-  forcedMate?: number;
-  bestMove: MoveNotation;
+  mate: number | null;
+  bestMove: MoveNotation | undefined;
 }
 
 export interface IChessEngine {
