@@ -4,9 +4,10 @@ import { Chess } from 'chess.js';
 import { stockfishAdapter } from '../../infrastructure/engine/stockfishAdapter.ts';
 
 export function PlayableBoard() {
-  const initialFen = '8/8/8/8/8/6k1/8/4R1K1 w - - 0 1';
+  const initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   const [fen, setFen] = useState(initialFen);
-
+  const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
+  const [difficulty, setDifficulty] = useState<number>(15);
   const game = useMemo(() => new Chess(initialFen), []);
   const engine = useMemo(() => new stockfishAdapter(), []);
 
@@ -16,19 +17,34 @@ export function PlayableBoard() {
   } | null>(null);
 
   useEffect(() => {
+    engine.setDifficulty(difficulty);
+  }, [engine, difficulty]);
+
+  useEffect(() => {
     engine.init();
     engine.onEvaluationReady((evalData) => {
       setEvaluation({score: evalData.score, mate: evalData.mate});
+      if (evalData.bestMove && game.turn() !== playerColor) {
+
+        try {
+          game.move(evalData.bestMove);
+          setFen(game.fen());
+        } catch (e) {
+          console.error('Invalid engine move:', evalData.bestMove);
+        }
+      }
     });
+
 
     return () => {
       engine.stop();
     };
-  }, [engine]);
+  }, [engine, game, playerColor]);
 
   useEffect(() => {
     engine.evaluatePosition(fen);
-  }, [engine, fen]);
+  }, [engine, fen, playerColor]);
+
 
   function onPieceDrop({
     sourceSquare,
@@ -38,6 +54,8 @@ export function PlayableBoard() {
     targetSquare: string | null;
   }) {
     if (!targetSquare) return false;
+    if (game.turn() !== playerColor) return false;
+
 
     try {
       const move = game.move({
@@ -57,16 +75,19 @@ export function PlayableBoard() {
 
   let evalText = 'Analyzing...';
   if (evaluation) {
+    const isWhiteTurn = game.turn() === 'w';
     if (evaluation.mate !== null) {
+      const absoluteMate = isWhiteTurn ? evaluation.mate : -evaluation.mate;
       evalText =
         evaluation.mate > 0
-          ? `M${evaluation.mate}`
-          : `-M${Math.abs(evaluation.mate)}`;
+          ? `M${absoluteMate}`
+          : `-M${Math.abs(absoluteMate)}`;
     } else {
+      const absoluteScore = isWhiteTurn ? evaluation.score : -evaluation.score;
       evalText =
-        evaluation.score > 0
-          ? `+${evaluation.score.toFixed(2)}`
-          : evaluation.score.toFixed(2);
+        absoluteScore > 0
+          ? `+${absoluteScore.toFixed(2)}`
+          : absoluteScore.toFixed(2);
     }
   }
   return (
@@ -80,7 +101,62 @@ export function PlayableBoard() {
       >
         Endgame Practice
       </h2>
-      <p style={{ color: 'white', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}>
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '10px',
+          marginBottom: '15px',
+        }}
+      >
+        <select
+          value={difficulty}
+          onChange={(e) => setDifficulty(Number(e.target.value))}
+          style={{ padding: '5px', borderRadius: '4px', cursor: 'pointer' }}
+        >
+          <option value={0}>Nivel 0 (Muy fácil)</option>
+          <option value={5}>Nivel 5 (Fácil)</option>
+          <option value={10}>Nivel 10 (Medio)</option>
+          <option value={15}>Nivel 15 (Difícil)</option>
+          <option value={20}>Nivel 20 (Stockfish Máximo)</option>
+        </select>
+
+        <button
+          onClick={() => setPlayerColor('w')}
+          style={{
+            padding: '5px 15px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            backgroundColor: playerColor === 'w' ? '#779556' : '#fff',
+            color: playerColor === 'w' ? 'white' : 'black',
+          }}
+        >
+          Blancas
+        </button>
+
+        <button
+          onClick={() => setPlayerColor('b')}
+          style={{
+            padding: '5px 15px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            backgroundColor: playerColor === 'b' ? '#779556' : '#fff',
+            color: playerColor === 'b' ? 'white' : 'black',
+          }}
+        >
+          Negras
+        </button>
+      </div>
+
+      <p
+        style={{
+          color: 'white',
+          textAlign: 'center',
+          fontSize: '1.2rem',
+          fontWeight: 'bold',
+        }}
+      >
         Engine evaluation: {evalText}
       </p>
 
@@ -88,7 +164,7 @@ export function PlayableBoard() {
         options={{
           position: fen,
           onPieceDrop,
-          boardOrientation: 'white',
+          boardOrientation: playerColor === 'w' ? 'white' : 'black',
           darkSquareStyle: { backgroundColor: '#779556' },
           lightSquareStyle: { backgroundColor: '#ebecd0' },
         }}

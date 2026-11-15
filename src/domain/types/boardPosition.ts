@@ -16,7 +16,7 @@ export type Square =
 export interface MoveNotation {
   from: Square;
   to: Square;
-  san: string;
+  san?: string;
   captured?: PieceType;
   promotion?: PieceType;
 }

@@ -18,6 +18,8 @@ export class stockfishAdapter implements IChessEngine {
   }
 
   private currentTurn: 'w' | 'b' = 'w';
+  private lastScore: number = 0;
+  private lastMate: number | null = null;
 
   public evaluatePosition(fen: string, depth: number = 15): void {
     if (!this.worker) this.init();
@@ -31,6 +33,12 @@ export class stockfishAdapter implements IChessEngine {
 
   public onEvaluationReady(callback: (evalData: EngineEvaluation) => void): void {
     this.callback = callback;
+  }
+
+  public setDifficulty(skillLevel: number): void {
+    if(!this.worker) this.init();
+    this.worker?.postMessage('setoption name UCI_LimitStrength value true');
+    this.worker?.postMessage(`setoption name Skill Level value ${skillLevel}`);
   }
 
   public stop(): void {
@@ -52,21 +60,38 @@ export class stockfishAdapter implements IChessEngine {
       const mateMatch = line.match(/score mate (-?\d+)/);
       if (mateMatch) {
         mate = parseInt(mateMatch[1], 10);
-        if (this.currentTurn === 'b') mate = -mate;
       }
       else {
         const cpMatch = line.match(/score cp (-?\d+)/);
         if (cpMatch) {
           let cp = parseInt(cpMatch[1], 10);
-          if (this.currentTurn === 'b') mate = -mate;
           score = cp/100;
         }
       }
+
+      this.lastScore = score;
+      this.lastMate = mate;
+
       this.callback({
         score,
         mate,
         bestMove: undefined
       });
+    }
+    if (line.startsWith('bestmove') && this.callback) {
+      const match = line.match(/^bestmove\s+(\w+)/);
+      if (match) {
+        const moveStr = match[1];
+        this.callback({
+          score: this.lastScore,
+          mate: this.lastMate,
+          bestMove: {
+            from: moveStr.substring(0, 2),
+            to: moveStr.substring(2, 4),
+            promotion: moveStr.length === 5 ? moveStr[4] : undefined,
+          },
+        });
+      }
     }
 
   }
