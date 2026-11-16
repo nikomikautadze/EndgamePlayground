@@ -15,6 +15,6 @@ export interface GameRecord {
 }
 
 export interface IGameRepository {
-  searchGames(query: string. filters?: GameFilterOptions): Promise<GameRecord[]>;
+  searchGames(query: string, filters?: GameFilterOptions): Promise<GameRecord[]>;
   getRandomGame(): Promise<GameRecord[]>;
 }
