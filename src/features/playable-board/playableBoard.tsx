@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { JSX, useEffect, useMemo, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { stockfishAdapter } from '../../infrastructure/engine/stockfishAdapter.ts';
 
-export function PlayableBoard() {
-  const initialFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+interface PlayableBoardProps {
+  initialFen: string;
+  playerColor: 'w' | 'b';
+  difficulty: number;
+}
+
+export function PlayableBoard({ initialFen, playerColor, difficulty}: PlayableBoardProps) {
   const [fen, setFen] = useState(initialFen);
-  const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
-  const [difficulty, setDifficulty] = useState<number>(15);
-  const game = useMemo(() => new Chess(initialFen), []);
+  const game = useMemo(() => new Chess(initialFen), [initialFen]);
   const engine = useMemo(() => new stockfishAdapter(), []);
 
   const [evaluation, setEvaluation] = useState<{
