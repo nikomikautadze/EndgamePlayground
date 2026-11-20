@@ -1,24 +1,25 @@
-import { JSX, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { stockfishAdapter } from '../../infrastructure/engine/stockfishAdapter.ts';
-
+import { GameRecord } from '../../domain/interfaces/iGameRepository.ts';
 
 interface PlayableBoardProps {
   initialFen: string;
   playerColor: 'w' | 'b';
   difficulty: number;
+  gameInfo?: GameRecord;
 }
 
-export function PlayableBoard({ initialFen, playerColor, difficulty}: PlayableBoardProps) {
+export function PlayableBoard({
+  initialFen,
+  playerColor,
+  difficulty,
+  gameInfo,
+}: PlayableBoardProps) {
   const [fen, setFen] = useState(initialFen);
   const game = useMemo(() => new Chess(initialFen), [initialFen]);
   const engine = useMemo(() => new stockfishAdapter(), []);
-
-  const [evaluation, setEvaluation] = useState<{
-    score: number;
-    mate: number | null;
-  } | null>(null);
 
   useEffect(() => {
     engine.setDifficulty(difficulty);
@@ -27,9 +28,7 @@ export function PlayableBoard({ initialFen, playerColor, difficulty}: PlayableBo
   useEffect(() => {
     engine.init();
     engine.onEvaluationReady((evalData) => {
-      setEvaluation({score: evalData.score, mate: evalData.mate});
       if (evalData.bestMove && game.turn() !== playerColor) {
-
         try {
           game.move(evalData.bestMove);
           setFen(game.fen());
@@ -39,30 +38,23 @@ export function PlayableBoard({ initialFen, playerColor, difficulty}: PlayableBo
       }
     });
 
-
     return () => {
       engine.stop();
     };
   }, [engine, game, playerColor]);
 
   useEffect(() => {
-
     let calculatedDepth = 15;
-    let moveTime: number | undefined = undefined;
-
     if (difficulty === 0) {
       calculatedDepth = 1;
-      moveTime = 50;
-    }
-    else if (difficulty == 5) {
+    } else if (difficulty === 5) {
       calculatedDepth = 3;
-      moveTime = 300;
     } else {
       calculatedDepth = Math.max(5, difficulty);
     }
+
     engine.evaluatePosition(fen, calculatedDepth);
   }, [engine, fen, playerColor, difficulty]);
-
 
   function onPieceDrop({
     sourceSquare,
@@ -74,12 +66,11 @@ export function PlayableBoard({ initialFen, playerColor, difficulty}: PlayableBo
     if (!targetSquare) return false;
     if (game.turn() !== playerColor) return false;
 
-
     try {
       const move = game.move({
         from: sourceSquare,
         to: targetSquare,
-        promotion: 'q', //!!!!!!
+        promotion: 'q',
       });
 
       if (move === null) return false;
@@ -91,102 +82,214 @@ export function PlayableBoard({ initialFen, playerColor, difficulty}: PlayableBo
     }
   }
 
-  let evalText = 'Analyzing...';
-  if (evaluation) {
-    const isWhiteTurn = game.turn() === 'w';
-    if (evaluation.mate !== null) {
-      const absoluteMate = isWhiteTurn ? evaluation.mate : -evaluation.mate;
-      evalText =
-        evaluation.mate > 0
-          ? `M${absoluteMate}`
-          : `-M${Math.abs(absoluteMate)}`;
-    } else {
-      const absoluteScore = isWhiteTurn ? evaluation.score : -evaluation.score;
-      evalText =
-        absoluteScore > 0
-          ? `+${absoluteScore.toFixed(2)}`
-          : absoluteScore.toFixed(2);
-    }
-  }
+  const handleReset = () => {
+    game.load(initialFen);
+    setFen(initialFen);
+  };
+
+  const isWhite = playerColor === 'w';
+  const currentTurn = game.turn();
+
+  const topPlayer = {
+    name: isWhite
+      ? gameInfo?.black || 'Stockfish'
+      : gameInfo?.white || 'Stockfish',
+    elo: isWhite ? gameInfo?.blackElo || 'N/A' : gameInfo?.whiteElo || 'N/A',
+    isTurn: currentTurn === (isWhite ? 'b' : 'w'),
+  };
+
+  const bottomPlayer = {
+    name: isWhite ? gameInfo?.white || 'You' : gameInfo?.black || 'You',
+    elo: isWhite ? gameInfo?.whiteElo || 'N/A' : gameInfo?.blackElo || 'N/A',
+    isTurn: currentTurn === playerColor,
+  };
+
+  const datePlayed = gameInfo?.date || 'Unknown Date';
+
   return (
-    <div style={{ maxWidth: '500px', margin: '0 auto', padding: '20px' }}>
-      <h2
-        style={{
-          color: 'white',
-          textAlign: 'center',
-          fontFamily: 'sans-serif',
-        }}
-      >
-        Endgame Practice
-      </h2>
+    <div style={screenContainerStyle}>
+      <div style={boardWrapperStyle}>
+        <div style={topMetaBarStyle}>
+          {gameInfo ? (
+            <span style={dateBadgeStyle}>Played on · {datePlayed}</span>
+          ) : (
+            <span style={dateBadgeStyle}>Custom Endgame</span>
+          )}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '10px',
-          marginBottom: '15px',
-        }}
-      >
-        <select
-          value={difficulty}
-          onChange={(e) => setDifficulty(Number(e.target.value))}
-          style={{ padding: '5px', borderRadius: '4px', cursor: 'pointer' }}
-        >
-          <option value={0}>Nivel 0 (Muy fácil)</option>
-          <option value={5}>Nivel 5 (Fácil)</option>
-          <option value={10}>Nivel 10 (Medio)</option>
-          <option value={15}>Nivel 15 (Difícil)</option>
-          <option value={20}>Nivel 20 (Stockfish Máximo)</option>
-        </select>
+          <button onClick={handleReset} style={resetButtonStyle}>
+            ↺ Reset Position
+          </button>
+        </div>
 
-        <button
-          onClick={() => setPlayerColor('w')}
+        <div
           style={{
-            padding: '5px 15px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            backgroundColor: playerColor === 'w' ? '#779556' : '#fff',
-            color: playerColor === 'w' ? 'white' : 'black',
+            ...playerBarStyle,
+            borderColor: topPlayer.isTurn ? '#3f3f46' : '#1f1f1f',
           }}
         >
-          Blancas
-        </button>
+          <div style={playerInfoGroupStyle}>
+            <div style={opponentAvatarStyle}>
+              {topPlayer.name.charAt(0).toUpperCase()}
+            </div>
+            <span style={playerNameStyle}>{topPlayer.name}</span>
+            {topPlayer.isTurn && <span style={turnDotStyle} />}
+          </div>
+          <span style={eloBadgeStyle}>Elo · {topPlayer.elo}</span>
+        </div>
 
-        <button
-          onClick={() => setPlayerColor('b')}
+        <div style={boardFrameStyle}>
+          <Chessboard
+            options={{
+              position: fen,
+              onPieceDrop,
+              boardOrientation: isWhite ? 'white' : 'black',
+              darkSquareStyle: { backgroundColor: '#b58863' },
+              lightSquareStyle: { backgroundColor: '#f0d9b5' },
+            }}
+          />
+        </div>
+
+        <div
           style={{
-            padding: '5px 15px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            backgroundColor: playerColor === 'b' ? '#779556' : '#fff',
-            color: playerColor === 'b' ? 'white' : 'black',
+            ...playerBarStyle,
+            borderColor: bottomPlayer.isTurn ? '#6366f1' : '#1f1f1f',
           }}
         >
-          Negras
-        </button>
+          <div style={playerInfoGroupStyle}>
+            <div style={userAvatarStyle}>
+              {bottomPlayer.name.charAt(0).toUpperCase()}
+            </div>
+            <span style={playerNameStyle}>{bottomPlayer.name}</span>
+            {bottomPlayer.isTurn && (
+              <span style={{ ...turnDotStyle, backgroundColor: '#a855f7' }} />
+            )}
+          </div>
+          <span style={eloBadgeStyle}>Elo · {bottomPlayer.elo}</span>
+        </div>
       </div>
-
-      <p
-        style={{
-          color: 'white',
-          textAlign: 'center',
-          fontSize: '1.2rem',
-          fontWeight: 'bold',
-        }}
-      >
-        Engine evaluation: {evalText}
-      </p>
-
-      <Chessboard
-        options={{
-          position: fen,
-          onPieceDrop,
-          boardOrientation: playerColor === 'w' ? 'white' : 'black',
-          darkSquareStyle: { backgroundColor: '#779556' },
-          lightSquareStyle: { backgroundColor: '#ebecd0' },
-        }}
-      />
     </div>
   );
 }
+
+
+const screenContainerStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+  minHeight: '100vh',
+  width: '100vw',
+  backgroundColor: '#000000',
+  padding: '44px 24px 24px 24px',
+  boxSizing: 'border-box' as const,
+  fontFamily:
+    '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+};
+
+const boardWrapperStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: '12px',
+  width: '100%',
+  maxWidth: '560px',
+};
+
+const topMetaBarStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '2px',
+};
+
+const dateBadgeStyle = {
+  fontSize: '0.8rem',
+  color: '#71717a',
+  letterSpacing: '0.02em',
+};
+
+const resetButtonStyle = {
+  backgroundColor: '#0a0a0a',
+  color: '#a1a1aa',
+  border: '1px solid #1f1f1f',
+  borderRadius: '8px',
+  padding: '6px 12px',
+  fontSize: '0.8rem',
+  cursor: 'pointer',
+  transition: 'border-color 0.2s, color 0.2s',
+};
+
+const boardFrameStyle = {
+  borderRadius: '14px',
+  overflow: 'hidden',
+  border: '1px solid #1f1f1f',
+  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.9)',
+  width: '100%',
+};
+
+const playerBarStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  backgroundColor: '#0a0a0a',
+  border: '1px solid #1f1f1f',
+  padding: '12px 16px',
+  borderRadius: '12px',
+  transition: 'border-color 0.25s ease',
+};
+
+const playerInfoGroupStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+};
+
+const opponentAvatarStyle = {
+  width: '30px',
+  height: '30px',
+  borderRadius: '8px',
+  backgroundColor: '#18181b',
+  border: '1px solid #27272a',
+  color: '#a1a1aa',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '0.85rem',
+  fontWeight: 600,
+};
+
+const userAvatarStyle = {
+  width: '30px',
+  height: '30px',
+  borderRadius: '8px',
+  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+  color: '#ffffff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '0.85rem',
+  fontWeight: 600,
+  boxShadow: '0 4px 12px rgba(168, 85, 247, 0.35)',
+};
+
+const playerNameStyle = {
+  color: '#f4f4f5',
+  fontWeight: 500,
+  fontSize: '0.95rem',
+};
+
+const turnDotStyle = {
+  width: '7px',
+  height: '7px',
+  borderRadius: '50%',
+  backgroundColor: '#71717a',
+};
+
+const eloBadgeStyle = {
+  backgroundColor: '#111111',
+  border: '1px solid #222222',
+  color: '#a1a1aa',
+  padding: '4px 10px',
+  borderRadius: '6px',
+  fontSize: '0.8rem',
+  fontFamily: 'monospace',
+};

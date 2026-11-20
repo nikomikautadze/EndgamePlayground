@@ -3,7 +3,7 @@ import { lichessRepo } from '../../infrastructure/lichessRepository.ts';
 import { GameRecord } from '../../domain/interfaces/iGameRepository.ts';
 
 interface Props {
-  onGameSelected: (pgn: string) => void;
+  onGameSelected: (game: GameRecord) => void;
 }
 
 export function LichessSearchSetup({ onGameSelected }: Props) {
@@ -22,47 +22,142 @@ export function LichessSearchSetup({ onGameSelected }: Props) {
     setIsLoading(false);
   };
 
-
   return (
-    <div style={{ backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px' }}>
-      <h3 style={{ marginTop: 0 }}>Database Search</h3>
+    <div style={searchContainerStyle}>
+      <h3 style={titleStyle}>Database</h3>
 
-      {/* SCALABLE FILTER BAR */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <div style={searchControlsStyle}>
         <input
           type="text"
           placeholder="Search player, ID..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={inputStyle}
+          style={searchInputStyle} // ASIGNADO
         />
-        <button onClick={() => handleSearch(searchQuery)} style={buttonStyle}>Search</button>
+        <button
+          onClick={() => handleSearch(searchQuery)}
+          style={searchButtonStyle}
+        >
+          Search
+        </button>
 
-        {/* Placeholders for future filters */}
-        <select disabled style={inputStyle}><option>Opening (Soon)</option></select>
-        <select disabled style={inputStyle}><option>Event (Soon)</option></select>
+        <select disabled style={selectStyle}>
+          <option>Opening (Soon)</option>
+        </select>
       </div>
 
-      {/* GAME LIST */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto' }}>
-        {isLoading ? <p>Loading games...</p> : games.map((game) => (
-          <div
-            key={game.id}
-            onClick={() => onGameSelected(game.pgn)}
-            style={{ padding: '15px', backgroundColor: '#333', borderRadius: '6px', cursor: 'pointer', border: '1px solid #444', display: 'flex', justifyContent: 'space-between' }}
-          >
-            <div>
-              <strong style={{ color: '#fff' }}>{game.white}</strong> vs <strong style={{ color: '#fff' }}>{game.black}</strong>
+      <div style={listContainerStyle}>
+        {isLoading ? (
+          <p style={{ color: '#888', textAlign: 'center' }}>Loading games...</p>
+        ) : (
+          games.map((game) => (
+            <div
+              key={game.id}
+              onClick={() => onGameSelected(game)}
+              style={listItemStyle}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.borderColor = '#6366f1')
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.borderColor = '#1f1f1f')
+              }
+            >
+              <div>
+                <strong style={{ color: '#fff', fontWeight: 500 }}>
+                  {game.white}
+                </strong>
+                <span style={{ color: '#888', margin: '0 8px' }}>vs</span>
+                <strong style={{ color: '#fff', fontWeight: 500 }}>
+                  {game.black}
+                </strong>
+              </div>
+              <div style={{ color: '#64748b', fontSize: '0.85rem' }}>
+                {game.date}
+              </div>
             </div>
-            <div style={{ color: '#aaa', fontSize: '0.9rem' }}>
-              {game.date}
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
 }
 
-const inputStyle = { padding: '10px', backgroundColor: '#333', color: 'white', border: '1px solid #555', borderRadius: '4px', flex: 1 };
-const buttonStyle = { padding: '10px 20px', backgroundColor: '#444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' };1
+
+const searchContainerStyle = {
+  backgroundColor: '#0a0a0a',
+  padding: '30px',
+  borderRadius: '16px',
+  border: '1px solid #1f1f1f',
+  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+  width: '100%',
+  boxSizing: 'border-box' as const,
+};
+
+const titleStyle = {
+  marginTop: 0,
+  marginBottom: '24px',
+  fontWeight: 600,
+  fontSize: '1.4rem',
+  color: '#ffffff',
+};
+
+const searchControlsStyle = {
+  display: 'flex',
+  gap: '12px',
+  marginBottom: '24px',
+  flexWrap: 'wrap' as const,
+};
+
+const searchInputStyle = {
+  flex: 2,
+  minWidth: '200px',
+  padding: '12px 16px',
+  backgroundColor: '#000000',
+  color: '#ffffff',
+  border: '1px solid #222222',
+  borderRadius: '10px',
+  fontSize: '0.9rem',
+  outline: 'none',
+  transition: 'border-color 0.2s',
+};
+
+const selectStyle = {
+  ...searchInputStyle,
+  flex: 1,
+  minWidth: '140px',
+  cursor: 'pointer',
+  appearance: 'none' as const,
+};
+
+const searchButtonStyle = {
+  padding: '12px 24px',
+  background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
+  color: '#ffffff',
+  border: 'none',
+  borderRadius: '10px',
+  cursor: 'pointer',
+  fontWeight: 600,
+  fontSize: '0.95rem',
+  boxShadow: '0 8px 20px -6px rgba(168, 85, 247, 0.5)',
+};
+
+const listContainerStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: '8px',
+  maxHeight: '400px',
+  overflowY: 'auto' as const,
+  paddingRight: '4px',
+};
+
+const listItemStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '16px 20px',
+  backgroundColor: '#111111',
+  border: '1px solid #1f1f1f',
+  borderRadius: '10px',
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
+};
